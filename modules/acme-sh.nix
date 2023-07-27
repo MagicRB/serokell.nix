@@ -121,8 +121,8 @@ in
         mkdir -p ${cfg.stateDir}
         chown 'root:root' ${cfg.stateDir}
         chmod 755 ${cfg.stateDir}
-        mkdir -p "${certDirectory}"
-        chown -R '${user}:${group}' "${certDirectory}"
+        mkdir -p "${statePath}" "${certDirectory}"
+        chown -R '${user}:${group}' "${statePath}"
         chmod 750 "${statePath}"
         rm -f "${statePath}/renewed"
       '';
