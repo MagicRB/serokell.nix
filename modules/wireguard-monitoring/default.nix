@@ -58,13 +58,44 @@ in {
               host = config.networking.hostName;
             };
           };
-          relabel_configs = [{
-            source_labels = [ "__journal__systemd_unit" ];
-            target_label = "unit";
+          relabel_configs = [
+            {
+              source_labels = [ "__journal__uid" ];
+              target_label = "user_id";
+            }
+            # some explanation to the next two rules.
+            # Important to notice that both have the same target_label: unit.
+            # if we would use only one rule with 2 source_labels, unfortunately only those
+            # labels will be kept where we have both source labels, so the root level services's log entries are gone.
+            # Regaring the 2nd rule's regex: "(.*);(.+)", we want to match only those where the __journal__systemd_user_unit
+            # is not empty, the regex matches and replaces the label with our $2 value which is the value of __journal__systemd_user_unit.
+            {
+              source_labels = [ "__journal__systemd_unit" ];
+              target_label = "unit";
+            }
+            {
+              source_labels = [ "__journal__systemd_unit" "__journal__systemd_user_unit" ];
+              target_label = "unit";
+              regex = "(.*);(.+)";
+              replacement = "$2";
+            }
+          ];
+        }] ++ (if config.services.nginx.enable
+        then [{
+          job_name = "nginx-error-logs";
+          static_configs = [{
+            targets = [ "localhost" ];
+            labels = {
+              job = "nginx-error-logs";
+              host = config.networking.hostName;
+              __path__ = "/var/log/nginx/*error.log";
+            };
           }];
-        }];
+        }] else [ ]);
       };
     };
+
+    users.users.promtail.extraGroups = lib.mkIf config.services.nginx.enable [ "nginx" ];
 
     # wait for wireguard before starting node-exporter
     systemd.services.prometheus-node-exporter.after = [ "wireguard-wg0.service" ];
